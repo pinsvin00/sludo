@@ -25,72 +25,6 @@ func greet(w http.ResponseWriter, request *http.Request) {
 	w.Write(jsonByte)
 }
 
-func all_players_READY(game * Game) bool{
-	if game.Pi == 1 {
-		return false
-	}
-	for i := 0; i < game.Pi; i++ {
-		if game.Player_status[i] == NOT_READY{
-			return false
-		}
-	}
-	return true
-}
-
-func initial_position_of(player int) int{
-	return 16 + player * 10
-}
-
-func first_free_field(game * Game,player int) int {
-	fmt.Print("trolololo")
-	bottom := player*4
-	free := [...]bool{true, true, true, true}
-	cap := 15
-	for i := 0 ; i < 4; i++ {
-		position := game.Positions[player][i]
-		if position <= cap{
-			position -= bottom
-			free[position] = false
-		}
-	}
-	for i := 0; i < 4; i++ {
-		if free[i]{
-			return bottom + i
-		}
-	}
-	return 0
-}
-
-func check_pawns(game * Game, position int){
-	player := game.Turn
-	for i := 0; i < 4; i++ {
-		if i == player{
-			continue
-		}
-		for j := 0; j < 4; j++ {
-			if game.Positions[i][j] == position {
-				fmt.Printf("Collision between players %v and %v", player, i);
-				fmt.Printf("Position of desroyed pawn %v", position);
-				game.Positions[i][j] = first_free_field(game ,i)
-				game.moves[i][j] = 0
-			}
-		}
-	}
-}
-
-func check_passings(last_position int, position int, player int) bool{
-	initial := initial_position_of(player) // 16, 26, 36, 46
-	if last_position > initial && position <= initial{ //jesli gosc przeszedl initial nie dziala dla przebitki
-		return true
-	}
-	return false
-}
-
-func first_free_house(game * Game,player int) int {
-	bottom := player*4 + (40 + 16) + game.pawns_in_house[player]
-	return bottom
-}
-
 func regular_fetch(w http.ResponseWriter, request *http.Request){
 	setupResponse(&w, request);
 	request_dict := load_request(request)
@@ -106,14 +40,31 @@ func regular_fetch(w http.ResponseWriter, request *http.Request){
 	game := &games[game_id]
 
 	if !game.Started {
-		for i := 0 ; i < game.Pi; i++ {
-			if game.guids[i] == request_dict["key"]{
-				game.Player_status[i], _ = strconv.Atoi(request_dict["player_status"])
-				log.Print(game.Player_status[i])
-			}
+		check_player_ready(game, request_dict)
+	}
+
+	for i := 0; i < game.Pi; i++ {
+		if game.pawns_in_house[i] == 4{
+			game.ended = true;
+			game.winner = game.Pi;
+		}
+		if game.guids[i] == request_dict["key"]{
+			game.Last_active[i] = time.Now()
+		}
+		time_diff := time.Now().Sub(game.Last_active[i])
+		if time_diff.Seconds() >= 20{
+			game.Player_status[i] = AFK
 		}
 	}
 
+
+	time_since_player_turn := time.Now().Sub(game.Roll_time_start).Seconds()
+
+
+	if time_since_player_turn >= 30 {
+		fmt.Println("Czas minal!")
+		next_player_turn(game)
+	}
 
 	if game.guids[game.Turn] == request_dict["key"]  { 
 		player_status, _ := strconv.Atoi(request_dict["player_status"])
@@ -122,7 +73,6 @@ func regular_fetch(w http.ResponseWriter, request *http.Request){
 			seed := rand.NewSource(time.Now().UnixNano())
 			random := rand.New(seed)
 			dice_roll := random.Intn(5) + 1
-			dice_roll = 10
 			game.Roll = dice_roll
 			game.Player_status[game.Turn] = CHOOSING_PAWN
 		} else if player_status == PAWN_CHOSEN {
@@ -131,11 +81,11 @@ func regular_fetch(w http.ResponseWriter, request *http.Request){
 			position := &game.Positions[game.Turn][position_chosen]
 			fmt.Println(game.Positions)
 			if *position <= 15{
-				//if game.Roll == 1 || game.Roll == 6 {
+				if game.Roll == 1 || game.Roll == 6 {
 					player := game.Turn 
 					*position = initial_position_of(player)
 					check_pawns(game, *position)
-				//}
+				}
 			} else {
 				*position = (*position + game.Roll) % (40 + 15);
 				if *position <= 15{
@@ -150,9 +100,7 @@ func regular_fetch(w http.ResponseWriter, request *http.Request){
 				}
 			}
 			fmt.Println(game.Positions)
-			game.Player_status[game.Turn] = 1
-			game.Turn = (game.Turn + 1) % game.Pi
-			game.Player_status[game.Turn] = ROLLING_DICE
+			next_player_turn(game)
 		}
 	}
 	

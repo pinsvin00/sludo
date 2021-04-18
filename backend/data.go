@@ -24,10 +24,13 @@ type Game struct {
 	Id             int       `json:"id"`
 	Started        bool      `json:"started"`
 	Positions      [4][4]int `json:"positions"`
+	ended bool
 	pawns_in_house [4]int
 	guids          [4]string
 	moves          [4][4]int
-	last_active [4]time.Time
+	winner int
+	Last_active [4]time.Time `json:"last_active"`
+	Roll_time_start time.Time `json:"roll_time_start"` 
 	Names         [4]string `json:"names"`
 	Player_status [4]int    `json:"players_status"`
 	Pi            int       `json:"player_count"`
