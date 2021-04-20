@@ -18,9 +18,12 @@ export class GameState {
   started: boolean;
   names: Array<string> = [];
   players_status: Array<number> = [];
+  player_afk_process: Array<number> = [20, 20, 20, 20];
   player_count: number;
   turn = -2;
   roll: number;
+  ended: boolean;
+  winner: number;
 }
 
 //DO 15 pozycji pola startowe

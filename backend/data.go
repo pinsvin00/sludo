@@ -24,11 +24,11 @@ type Game struct {
 	Id             int       `json:"id"`
 	Started        bool      `json:"started"`
 	Positions      [4][4]int `json:"positions"`
-	ended bool
+	Ended bool `json:"ended"`
 	pawns_in_house [4]int
 	guids          [4]string
 	moves          [4][4]int
-	winner int
+	Winner int `json:"winner"`
 	Last_active [4]time.Time `json:"last_active"`
 	Roll_time_start time.Time `json:"roll_time_start"` 
 	Names         [4]string `json:"names"`
@@ -47,6 +47,8 @@ func new_game() Game {
 		Pi:   0,
 		Turn: 0,
 	}
+	game.Ended = false
+	game.Winner = -1
 	pos := 0
 	for i := 0; i < 4; i++ {
 		for j := 0; j < 4; j++ {

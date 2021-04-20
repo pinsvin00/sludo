@@ -45,8 +45,8 @@ func regular_fetch(w http.ResponseWriter, request *http.Request){
 
 	for i := 0; i < game.Pi; i++ {
 		if game.pawns_in_house[i] == 4{
-			game.ended = true;
-			game.winner = game.Pi;
+			game.Ended = true;
+			game.Winner = game.Pi;
 		}
 		if game.guids[i] == request_dict["key"]{
 			game.Last_active[i] = time.Now()
@@ -61,18 +61,19 @@ func regular_fetch(w http.ResponseWriter, request *http.Request){
 	time_since_player_turn := time.Now().Sub(game.Roll_time_start).Seconds()
 
 
-	if time_since_player_turn >= 30 {
+	if time_since_player_turn >= 30 && game.Started {
 		fmt.Println("Czas minal!")
 		next_player_turn(game)
 	}
 
-	if game.guids[game.Turn] == request_dict["key"]  { 
+	if game.guids[game.Turn] == request_dict["key"] && !game.Ended && game.Started  { 
 		player_status, _ := strconv.Atoi(request_dict["player_status"])
 		if player_status == DICE_ROLLED {
 			fmt.Println("player has rolled the dice")
 			seed := rand.NewSource(time.Now().UnixNano())
 			random := rand.New(seed)
 			dice_roll := random.Intn(5) + 1
+			dice_roll = 10
 			game.Roll = dice_roll
 			game.Player_status[game.Turn] = CHOOSING_PAWN
 		} else if player_status == PAWN_CHOSEN {
@@ -81,13 +82,13 @@ func regular_fetch(w http.ResponseWriter, request *http.Request){
 			position := &game.Positions[game.Turn][position_chosen]
 			fmt.Println(game.Positions)
 			if *position <= 15{
-				if game.Roll == 1 || game.Roll == 6 {
+				//if game.Roll == 1 || game.Roll == 6 {
 					player := game.Turn 
 					*position = initial_position_of(player)
 					check_pawns(game, *position)
-				}
-			} else {
-				*position = (*position + game.Roll) % (40 + 15);
+				//}
+			} else if *position < 56 {
+				*position = (*position + game.Roll) % (55);
 				if *position <= 15{
 					*position += 15
 				}
@@ -106,6 +107,8 @@ func regular_fetch(w http.ResponseWriter, request *http.Request){
 	
 	if !game.Started && all_players_READY(game) {
 		fmt.Println("game has started!")
+		last_id++;
+		games = append(games, new_game())
 		game.Started = true;
 		game.Player_status[game.Turn] = ROLLING_DICE
 	}
@@ -125,10 +128,8 @@ func register_player(w http.ResponseWriter, request *http.Request) {
 
 	game := &games[last_id]
 	game.Names[game.Pi] = request_dict["name"]
-	log.Print(game.Names)
 	game.Player_status[game.Pi] = NOT_READY
 	game.guids[game.Pi] = ksuid.New().String()
-	log.Print(game.Names)
 	response["success"] = "true"
 	response["player_name"] = request_dict["name"]
 	response["player_number"] = fmt.Sprint(game.Pi)

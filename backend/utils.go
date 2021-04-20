@@ -12,6 +12,7 @@ import (
 
 
 func all_players_READY(game * Game) bool{
+	fmt.Println(game.Player_status)
 	if game.Pi == 1 {
 		return false
 	}
@@ -72,7 +73,7 @@ func check_passings(last_position int, position int, player int) bool{
 }
 
 func first_free_house(game * Game,player int) int {
-	bottom := player*4 + (40 + 16) + game.pawns_in_house[player]
+	bottom := player * 4 + (56) + game.pawns_in_house[player]
 	return bottom
 }
 

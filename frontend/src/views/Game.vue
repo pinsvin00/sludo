@@ -1,9 +1,14 @@
 <template>
   <div class="main">
+    <div class="endscreen" v-if="isGameEnded">
+      <div class="centered-box">
+        <div>Wygrał gracz numer {{ winner }}</div>
+      </div>
+    </div>
     <div class="left-panel">
       <div class="player-container">
         <md-switch v-if="!state.Started" v-model="ready" @change="changeReady"
-          >Are you ready?</md-switch
+          >Gotowy?</md-switch
         >
       </div>
       <div
@@ -42,12 +47,13 @@
           zIndex: '3',
         }"
         @click="choosePawn(field_pawn_number[index])"
-        :class="
-          field_pawn_number[index] !== -1 && playerStatus === CHOOSING_PAWN
-            ? 'field-has-players-pawn'
-            : ''
-        "
-        :id="'field' + index"
+        @mouseover="highlightPosition(index)"
+        @mouseleave="dehighlightPosition(index)"
+        :class="{
+          'field-has-players-pawn': field_pawn_number[index] !== -1,
+          'possible-move': isAbleToMove[index],
+        }"
+        :id="'field-' + index"
       >
         {{ index }}
       </div>
@@ -69,9 +75,7 @@
       ></md-progress-spinner>
     </div>
 
-    <div v-else-if="state.started">
-      <h5>{{ state.roll }}</h5>
-    </div>
+    <img :src="diceImgUrl[state.roll]" class="dice" />
   </div>
 </template>
 
@@ -84,6 +88,12 @@ import { GameState, board_positions, player_colors } from "@/types/index";
   components: {},
 })
 export default class Game extends Vue {
+  /*
+  TODO
+  ->Konczenie rozgrywki
+  ->Czat
+  */
+
   NOT_READY = 0;
   READY = 1;
   ROLLING_DICE = 2;
@@ -92,14 +102,19 @@ export default class Game extends Vue {
   PAWN_CHOSEN = 5;
   chosen = 0;
 
+  isGameEnded = false;
+  winner = -1;
+
   canvas?: HTMLCanvasElement;
   canvasCtx: CanvasRenderingContext2D;
   state: GameState = new GameState();
   positions: Array<any> = [];
   field_has_pawn: Array<boolean> = [];
   field_pawn_number: Array<number> = [];
+  isAbleToMove: Array<boolean> = [];
 
   ready = false;
+  readOnce = false;
   id = -10;
   type = "";
   key = "";
@@ -107,6 +122,16 @@ export default class Game extends Vue {
   game_id = "-1";
   playerStatus = 0;
   image: any;
+
+  diceImgUrl = [
+    "https://cdn.pixabay.com/photo/2013/07/12/17/39/dice-152173_960_720.png",
+    "https://cdn.pixabay.com/photo/2013/07/12/17/39/dice-152173_960_720.png",
+    "https://cdn.pixabay.com/photo/2013/07/12/17/39/dice-152174_1280.png",
+    "https://lh3.googleusercontent.com/proxy/TnzHE9DfCb0cZ7qfRSTeRoOHWF_Q_ReWBWBKYkF1PtLj4iEySmRm_UPuFmuyQrBh5PxnaO_CRtifX4GAKmfBnAh_NpZwm7MpxeASaB-mVtv2MqE",
+    "https://freesvg.org/img/dado-4.png",
+    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcROGmw-bqWkz6Icg7_Kemdv-3DndU1Gn2-N5Sl-KsYonvHxGCWcdDD98_nH9ejih6QU8ik&usqp=CAU",
+    "https://lh3.googleusercontent.com/proxy/xCIio31m93KAR8r5s9XdolqkJTwZzGm-z4NxDFvTCks8Y0GEpn1ewmEq8HQvNjNKUAGJULMcvafpOyb7242Ou8Ts1QA4WyDnT-4YwyKlYRSuM4c",
+  ];
 
   diceKey = 0;
 
@@ -119,6 +144,29 @@ export default class Game extends Vue {
     if (this.playerStatus === this.CHOOSING_PAWN) {
       this.nextStatus();
       this.chosen = pawn;
+    }
+  }
+
+  highlightPosition(position: number) {
+    if (this.field_pawn_number[position] <= -1 || this.state.turn !== this.id) {
+      return;
+    }
+    const positionToHighlight = this.calculate_position(position);
+    if (positionToHighlight === -1) return;
+    const elementHighlight = document.getElementById(
+      `field-${positionToHighlight}`
+    );
+    if (elementHighlight) {
+      elementHighlight.className += ` pinkHover`;
+    } else {
+      console.log("ERR : NULL ELEMENT!");
+    }
+  }
+
+  dehighlightPosition() {
+    const highlighted = document.getElementsByClassName("pinkHover");
+    for (let i = 0; i < highlighted.length; i++) {
+      highlighted[i].classList.remove("pinkHover");
     }
   }
 
@@ -138,6 +186,18 @@ export default class Game extends Vue {
     this.playerStatus = this.state.players_status[this.id];
     console.log("RECEIVED PLAYER STATUS", this.playerStatus);
     this.diceKey++;
+    if (this.state.players_status[this.id] === this.CHOOSING_PAWN) {
+      if (!this.readOnce) {
+        const synth = window.speechSynthesis;
+        const speech = new SpeechSynthesisUtterance(this.state.roll.toString());
+        synth.speak(speech);
+        this.readOnce = true;
+      }
+    } else {
+      this.readOnce = false;
+    }
+    this.isGameEnded = this.state.ended;
+    this.winner = this.state.winner;
   }
 
   changeReady() {
@@ -152,8 +212,10 @@ export default class Game extends Vue {
 
   mounted() {
     this.field_has_pawn = [];
+    this.isAbleToMove = [];
     board_positions.forEach((el) => {
       this.field_pawn_number.push(-1);
+      this.isAbleToMove.push(false);
     });
 
     this.positions = board_positions;
@@ -166,20 +228,49 @@ export default class Game extends Vue {
     this.canvasCtx = this.canvas.getContext("2d") as CanvasRenderingContext2D;
     this.image = document.getElementById("ludo-img");
 
-    setInterval(this.drawImage, 20);
+    setInterval(this.drawImage, 300);
     setInterval(this.fetchState, 3000);
+  }
+
+  calculate_position(position: number) {
+    console.log(position);
+    if (position <= 16) {
+      if (this.state.roll === 1 || this.state.roll === 6) {
+        return 16 + this.id * 10;
+      }
+      return -1;
+    } else {
+      position = (position + this.state.roll) % (40 + 15);
+      if (position <= 15) {
+        position += 15;
+      }
+      return position;
+    }
   }
 
   drawImage() {
     this.canvasCtx?.drawImage(this.image, 0, 0, 800, 800);
-    this.field_pawn_number.map(() => {
-      return -1;
+    this.field_pawn_number.forEach((el, index) => {
+      this.field_pawn_number[index] = -1;
+      this.isAbleToMove[index] = false;
     });
+    if (this.state.ended) {
+      return;
+    }
     this.state.positions.forEach((player, index) => {
       player.forEach((pawn, pawnPlayerNumber) => {
         const position = board_positions[pawn];
         if (index == this.id) {
           this.field_pawn_number[pawn] = pawnPlayerNumber;
+          if (this.playerStatus === this.CHOOSING_PAWN) {
+            if (
+              (pawn <= 15 &&
+                (this.state.roll === 1 || this.state.roll === 6)) ||
+              pawn >= 15
+            ) {
+              this.isAbleToMove[pawn] = true;
+            }
+          }
         }
         this.canvasCtx?.beginPath();
         this.canvasCtx.fillStyle = player_colors[index];
@@ -206,6 +297,48 @@ export default class Game extends Vue {
   z-index: 1;
   position: relative;
 }
+
+.possible-move {
+  background-color: royalblue;
+  border-radius: 100%;
+  animation: blink 1s linear infinite;
+}
+
+.endscreen {
+  z-index: 20;
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.centered-box {
+  background-color: rgba(255, 255, 255, 1);
+  font-size: 72px;
+  width: 50rem;
+  height: 20rem;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@keyframes blink {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 0.5;
+  }
+}
+.pinkHover {
+  background-color: red;
+  opacity: 0.5;
+  border-radius: 100%;
+}
 .player-image {
   border-radius: 100%;
   width: 120px;
@@ -213,6 +346,10 @@ export default class Game extends Vue {
 }
 .player-container {
   margin-bottom: 2rem;
+}
+.dice {
+  width: 120px;
+  height: 120px;
 }
 .left-panel {
   width: 20%;
