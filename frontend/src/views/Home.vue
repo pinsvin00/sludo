@@ -33,6 +33,11 @@ export default class Home extends Vue {
       this.$router.push("Game");
     }
   }
+  created() {
+    if (Cookies.get("player_name") || Cookies.get("player_name") !== "") {
+      this.$router.push("Game");
+    }
+  }
 }
 </script>
 

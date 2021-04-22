@@ -16,13 +16,27 @@
         :key="index"
         class="player-container"
       >
-        <div v-if="element !== ''">
+        <div
+          v-if="element !== ''"
+          class="player-segment"
+          style="border-left: 3rem"
+        >
+          <md-progress-spinner
+            v-if="index === state.turn"
+            style="width: 25%"
+            class="md-accent flex-center"
+            md-mode="determinate"
+            :md-diameter="40"
+            :md-value="leftToRoll"
+          ></md-progress-spinner>
           <img
             src="https://images-na.ssl-images-amazon.com/images/I/81RfjOhvMrL.png"
             alt="Ikona gracza"
             class="player-image"
           />
-          {{ element + (state.players_status[index] == 1 ? " Ready!" : "") }}
+          <div class="flex-center">
+            {{ element + (state.players_status[index] == 1 ? " Gotów!" : "") }}
+          </div>
         </div>
       </div>
     </div>
@@ -84,6 +98,7 @@ import { Component, Vue, Ref } from "vue-property-decorator";
 import Cookies from "js-cookie";
 import * as api from "@/store/api";
 import { GameState, board_positions, player_colors } from "@/types/index";
+import moment from "moment";
 @Component({
   components: {},
 })
@@ -122,6 +137,12 @@ export default class Game extends Vue {
   game_id = "-1";
   playerStatus = 0;
   image: any;
+
+  redirectTimeout = false;
+
+  leftToRoll = 0;
+
+  moveMakerLastActivte: moment.Moment;
 
   diceImgUrl = [
     "https://cdn.pixabay.com/photo/2013/07/12/17/39/dice-152173_960_720.png",
@@ -182,6 +203,9 @@ export default class Game extends Vue {
       player_status,
       game_id,
     });
+    if (!response.data.success) {
+      this.returnToMain();
+    }
     this.state = response.data;
     this.playerStatus = this.state.players_status[this.id];
     console.log("RECEIVED PLAYER STATUS", this.playerStatus);
@@ -196,8 +220,22 @@ export default class Game extends Vue {
     } else {
       this.readOnce = false;
     }
+    this.moveMakerLastActivte = moment(this.state.roll_time_start);
     this.isGameEnded = this.state.ended;
     this.winner = this.state.winner;
+
+    if (this.isGameEnded && !this.redirectTimeout) {
+      this.redirectTimeout = true;
+      setTimeout(this.returnToMain, 15000);
+    }
+  }
+
+  returnToMain() {
+    Cookies.set("key", "");
+    Cookies.set("player_name", "");
+    Cookies.set("player_number", "");
+    Cookies.set("game_id", "");
+    this.$router.push("Home");
   }
 
   changeReady() {
@@ -233,22 +271,26 @@ export default class Game extends Vue {
   }
 
   calculate_position(position: number) {
-    console.log(position);
-    if (position <= 16) {
+    if (position <= 15) {
       if (this.state.roll === 1 || this.state.roll === 6) {
         return 16 + this.id * 10;
       }
       return -1;
-    } else {
-      position = (position + this.state.roll) % (40 + 15);
+    } else if (position < 56) {
+      position = (position + this.state.roll) % 56;
       if (position <= 15) {
         position += 15;
       }
       return position;
     }
+    return -1;
   }
 
   drawImage() {
+    const diff = moment().diff(this.moveMakerLastActivte);
+    const secsLeft = moment.duration(diff).asSeconds();
+    console.log(secsLeft, "pozostalo ");
+    this.leftToRoll = (secsLeft / 30) * 100;
     this.canvasCtx?.drawImage(this.image, 0, 0, 800, 800);
     this.field_pawn_number.forEach((el, index) => {
       this.field_pawn_number[index] = -1;
@@ -289,6 +331,13 @@ export default class Game extends Vue {
   flex-direction: row;
   height: 100%;
 }
+.player-segment {
+  display: flex;
+  width: 100%;
+  align-content: center;
+  justify-items: center;
+  flex-direction: row;
+}
 .game {
   max-width: 800px;
   width: 800px;
@@ -296,6 +345,12 @@ export default class Game extends Vue {
   flex: 1;
   z-index: 1;
   position: relative;
+}
+
+.flex-center {
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 .possible-move {

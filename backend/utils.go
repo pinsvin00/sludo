@@ -86,6 +86,16 @@ func check_player_ready(game * Game, request_dict map[string]string){
 	}
 }
 
+func check_if_player_in_game(game * Game, request_dict map[string]string) bool{
+	result := false
+	for i := 0 ; i < game.Pi; i++ {
+		if game.guids[i] == request_dict["key"]{
+			result = true
+		}
+	}
+	return result
+}
+
 func save_game_state(game * Game){
 	fmt.Println(game)
 }

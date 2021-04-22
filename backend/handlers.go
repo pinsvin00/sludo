@@ -32,12 +32,23 @@ func regular_fetch(w http.ResponseWriter, request *http.Request){
 
 	if(game_id > last_id || game_id == -1){
 		response := make(map[string]string)
-		response["success"] = "true"
+		response["success"] = "false"
 		jsonByte, _ := json.Marshal(response)
 		w.Write(jsonByte)
+		return
 	}
 
+
 	game := &games[game_id]
+
+
+	if !check_if_player_in_game(game, request_dict){
+		response := make(map[string]string)
+		response["success"] = "false"
+		jsonByte, _ := json.Marshal(response)
+		w.Write(jsonByte)
+		return
+	}
 
 	if !game.Started {
 		check_player_ready(game, request_dict)
@@ -73,7 +84,6 @@ func regular_fetch(w http.ResponseWriter, request *http.Request){
 			seed := rand.NewSource(time.Now().UnixNano())
 			random := rand.New(seed)
 			dice_roll := random.Intn(5) + 1
-			dice_roll = 10
 			game.Roll = dice_roll
 			game.Player_status[game.Turn] = CHOOSING_PAWN
 		} else if player_status == PAWN_CHOSEN {
@@ -82,14 +92,14 @@ func regular_fetch(w http.ResponseWriter, request *http.Request){
 			position := &game.Positions[game.Turn][position_chosen]
 			fmt.Println(game.Positions)
 			if *position <= 15{
-				//if game.Roll == 1 || game.Roll == 6 {
+				if game.Roll == 1 || game.Roll == 6 {
 					player := game.Turn 
 					*position = initial_position_of(player)
 					check_pawns(game, *position)
-				//}
+				}
 			} else if *position < 56 {
-				*position = (*position + game.Roll) % (55);
-				if *position <= 15{
+				*position = (*position + game.Roll) % (56);
+				if *position <= 15{ //przejscie
 					*position += 15
 				}
 				check_pawns(game, *position)

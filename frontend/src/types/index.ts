@@ -1,3 +1,5 @@
+import moment from "moment";
+
 export class LudoGM {
   canvas: HTMLCanvasElement = new HTMLCanvasElement();
   canvasCtx: CanvasRenderingContext2D = new CanvasRenderingContext2D();
@@ -24,6 +26,7 @@ export class GameState {
   roll: number;
   ended: boolean;
   winner: number;
+  roll_time_start: string;
 }
 
 //DO 15 pozycji pola startowe
