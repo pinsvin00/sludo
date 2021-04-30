@@ -192,6 +192,11 @@ export default class Game extends Vue {
   }
 
   async fetchState() {
+    if (this.isGameEnded && !this.redirectTimeout) {
+      console.log("redirecting to home...");
+      this.redirectTimeout = true;
+      setTimeout(this.returnToMain, 15000);
+    }
     const player_status = this.playerStatus.toString();
     const chosen = this.chosen.toString();
     const key = this.key;
@@ -203,13 +208,15 @@ export default class Game extends Vue {
       player_status,
       game_id,
     });
-    if (!response.data.success) {
+    console.log("penis", response.data.success);
+    if (response.data.success === "false") {
       this.returnToMain();
     }
     this.state = response.data;
     this.playerStatus = this.state.players_status[this.id];
     console.log("RECEIVED PLAYER STATUS", this.playerStatus);
     this.diceKey++;
+    if (this.id === undefined) return;
     if (this.state.players_status[this.id] === this.CHOOSING_PAWN) {
       if (!this.readOnce) {
         const synth = window.speechSynthesis;
@@ -222,19 +229,17 @@ export default class Game extends Vue {
     }
     this.moveMakerLastActivte = moment(this.state.roll_time_start);
     this.isGameEnded = this.state.ended;
+    console.log(this.state, "state!");
     this.winner = this.state.winner;
-
-    if (this.isGameEnded && !this.redirectTimeout) {
-      this.redirectTimeout = true;
-      setTimeout(this.returnToMain, 15000);
-    }
   }
 
   returnToMain() {
-    Cookies.set("key", "");
-    Cookies.set("player_name", "");
-    Cookies.set("player_number", "");
-    Cookies.set("game_id", "");
+    clearInterval(this.t1);
+    clearInterval(this.t2);
+    Cookies.remove("key");
+    Cookies.remove("player_name");
+    Cookies.remove("player_number");
+    Cookies.remove("game_id");
     this.$router.push("Home");
   }
 
@@ -247,6 +252,9 @@ export default class Game extends Vue {
     }
     this.playerStatus = this.state.players_status[pi];
   }
+
+  t1: any;
+  t2: any;
 
   mounted() {
     this.field_has_pawn = [];
@@ -262,12 +270,14 @@ export default class Game extends Vue {
     this.game_id = Cookies.get("game_id");
     this.id = parseInt(Cookies.get("player_number"));
 
+    console.log(`pid ${this.id}, gid ${this.game_id}`);
+
     this.canvas = document.getElementById("game") as HTMLCanvasElement;
     this.canvasCtx = this.canvas.getContext("2d") as CanvasRenderingContext2D;
     this.image = document.getElementById("ludo-img");
 
-    setInterval(this.drawImage, 300);
-    setInterval(this.fetchState, 3000);
+    this.t1 = setInterval(this.drawImage, 300);
+    this.t2 = setInterval(this.fetchState, 3000);
   }
 
   calculate_position(position: number) {
@@ -287,9 +297,9 @@ export default class Game extends Vue {
   }
 
   drawImage() {
+    if (this.redirectTimeout) return;
     const diff = moment().diff(this.moveMakerLastActivte);
     const secsLeft = moment.duration(diff).asSeconds();
-    console.log(secsLeft, "pozostalo ");
     this.leftToRoll = (secsLeft / 30) * 100;
     this.canvasCtx?.drawImage(this.image, 0, 0, 800, 800);
     this.field_pawn_number.forEach((el, index) => {

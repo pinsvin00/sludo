@@ -34,7 +34,8 @@ export default class Home extends Vue {
     }
   }
   created() {
-    if (Cookies.get("player_name") || Cookies.get("player_name") !== "") {
+    console.log("xd", Cookies.get("player_name"));
+    if (Cookies.get("player_name") !== undefined) {
       this.$router.push("Game");
     }
   }

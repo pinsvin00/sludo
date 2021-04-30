@@ -6,8 +6,6 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
-	"gorm.io/driver/mysql"
-	"gorm.io/gorm"
 )
 
 var games[] Game
@@ -18,10 +16,10 @@ func main() {
 	game := new_game()
 	games = append(games, game)
 	fmt.Println(games[0].Turn)
-	dsn := "root:ziomek22@tcp(127.0.0.1:3306)/ludo?charset=utf8mb4&parseTime=True&loc=Local";
-	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
-	fmt.Print(db)
-	fmt.Print(err)
+	// dsn := "root:ziomek22@tcp(127.0.0.1:3306)/ludo?charset=utf8mb4&parseTime=True&loc=Local";
+	// db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
+	// fmt.Print(db)
+	// fmt.Print(err)
 
 	fmt.Println("Initiated server...");
 	r := mux.NewRouter()
