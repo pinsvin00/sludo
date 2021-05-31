@@ -15,14 +15,13 @@ var last_id = 0
 func main() {
 	game := new_game()
 	games = append(games, game)
-	fmt.Println(games[0].Turn)
-	// dsn := "root:ziomek22@tcp(127.0.0.1:3306)/ludo?charset=utf8mb4&parseTime=True&loc=Local";
-	// db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
-	// fmt.Print(db)
-	// fmt.Print(err)
 
 	fmt.Println("Initiated server...");
 	r := mux.NewRouter()
+
+	game.Moves[0][0] = 38
+	game.Positions[0][0] = 55
+
 
 	r.HandleFunc("/api/greet_user", greet).Methods("GET");
 	r.HandleFunc("/api/join", register_player).Methods(http.MethodPost);
